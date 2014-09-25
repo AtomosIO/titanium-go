@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/atomosio/common"
 	"io"
+	"io/ioutil"
 	"net/http"
 	neturl "net/url"
 )
@@ -17,13 +18,18 @@ type HttpClient struct {
 	//URL Related data
 	scheme string
 	host   string
+	path   string
 }
 
 type URL struct {
 	neturl.URL
 }
 
-// Create a new Oxygen client using HTTP protocol. The client will use the
+const (
+	InstancesEndpoint = "/instances"
+)
+
+// Create a new client using HTTP protocol. The client will use the
 // specified token for all interactions with the service. An empty token string
 // will cause the omission of token cookie, resulting in only public repositories
 // being accesible.
@@ -42,6 +48,7 @@ func newHttpClient(endpoint, token string, log bool) (client *HttpClient) {
 
 		scheme: urlURL.Scheme,
 		host:   urlURL.Host,
+		path:   urlURL.Path,
 	}
 }
 
@@ -93,7 +100,48 @@ func (client *HttpClient) prepRequest(method string, url *URL, body io.Reader) (
 	return req, nil
 }
 
+func (client *HttpClient) do(req *http.Request) (*http.Response, error) {
+	return client.client.Do(req)
+}
+
 // Did we get a 2XX respond code?
 func statusGood(status int) bool {
 	return status >= 200 && status <= 299
+}
+
+func (client *HttpClient) get(format string, args ...interface{}) (data []byte, err error) {
+	url := client.NewURL(fmt.Sprintf(format, args...))
+
+	// Prepare request
+	req, err := client.prepGetRequest(url)
+	if err != nil {
+		client.Logf("Failed PrepRequest: %s\n", err)
+		return nil, err
+	}
+	// Do request
+	resp, err := client.do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return data, err
+	}
+
+	return data, nil
+}
+
+//type URL struct {
+//	url.URL
+//}
+
+func (client *HttpClient) NewURL(path string) *URL {
+	return &URL{
+		URL: neturl.URL{
+			Scheme: client.scheme,
+			Host:   client.host,
+			Path:   client.path + path,
+		},
+	}
 }
