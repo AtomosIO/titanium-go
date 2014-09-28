@@ -2,7 +2,7 @@ package titanium
 
 import (
 	"fmt"
-	"github.com/atomosio/common"
+	//	"github.com/atomosio/common"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -26,7 +26,7 @@ type URL struct {
 }
 
 const (
-	InstancesEndpoint = "/instances"
+	InstancesEndpoint = "instances/"
 )
 
 // Create a new client using HTTP protocol. The client will use the
@@ -84,7 +84,7 @@ func (client *HttpClient) prepPatchRequest(url *URL, body io.Reader) (req *http.
 }
 
 func (client *HttpClient) prepEmptyRequest(method string, url *URL) (req *http.Request, err error) {
-	return client.prepRequest(method, url, common.NewEmptyReader())
+	return client.prepRequest(method, url, nil)
 }
 
 func (client *HttpClient) prepRequest(method string, url *URL, body io.Reader) (req *http.Request, err error) {
@@ -118,6 +118,7 @@ func (client *HttpClient) get(format string, args ...interface{}) (data []byte, 
 		client.Logf("Failed PrepRequest: %s\n", err)
 		return nil, err
 	}
+	//fmt.Printf("REQUEST -> %+v\n", req)
 	// Do request
 	resp, err := client.do(req)
 	if err != nil {

@@ -2,8 +2,11 @@ package titanium
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 )
+
+var _ = fmt.Printf
 
 type Instance struct {
 	Command    string `json:"command"`
