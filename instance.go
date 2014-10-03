@@ -9,7 +9,10 @@ import (
 var _ = fmt.Printf
 
 type Instance struct {
-	Command    string `json:"command"`
+	Command string `json:"command"`
+	Stdout  int64  `json:"stdout"`
+	Stderr  int64  `json:"stderr"`
+
 	Executable string
 	Arguments  []string
 	Directory  string
@@ -29,7 +32,7 @@ func (client *HttpClient) GetTokenInstance() (Instance, error) {
 	if err != nil {
 		return output, err
 	}
-
+	//fmt.Println(string(data))
 	// Sample command:
 	// /atomos/user/project/directory/executable arguments and more arugments
 	commandSplits := strings.SplitN(output.Command, " ", 2)
