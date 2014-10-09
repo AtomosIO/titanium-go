@@ -1,6 +1,8 @@
 package titanium
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	//	"github.com/atomosio/common"
 	"io"
@@ -21,13 +23,25 @@ type HttpClient struct {
 	path   string
 }
 
+type Response struct {
+	Code        int     `json:"code"`
+	Description string  `json:"description"`
+	Errors      []Error `json:"errors,omitempty"`
+}
+
 type URL struct {
 	neturl.URL
 }
 
 const (
 	InstancesEndpoint = "instances/"
+	ClustersEndpoint  = "clusters/"
 )
+
+type Error struct {
+	Code        int    `json:"code"`
+	Description string `json:"description"`
+}
 
 // Create a new client using HTTP protocol. The client will use the
 // specified token for all interactions with the service. An empty token string
@@ -133,9 +147,36 @@ func (client *HttpClient) get(format string, args ...interface{}) (data []byte, 
 	return data, nil
 }
 
-//type URL struct {
-//	url.URL
-//}
+func (client *HttpClient) patch(jsonVar interface{}, format string, args ...interface{}) (data []byte, err error) {
+	url := client.NewURL(fmt.Sprintf(format, args...))
+
+	marshalledData, err := json.Marshal(jsonVar)
+	if err != nil {
+		return nil, err
+	}
+
+	reader := bytes.NewReader(marshalledData)
+
+	// Prepare request
+	req, err := client.prepPatchRequest(url, reader)
+	if err != nil {
+		client.Logf("Failed PrepRequest: %s\n", err)
+		return nil, err
+	}
+
+	// Do request
+	resp, err := client.do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return data, err
+	}
+
+	return data, nil
+}
 
 func (client *HttpClient) NewURL(path string) *URL {
 	return &URL{
@@ -145,4 +186,30 @@ func (client *HttpClient) NewURL(path string) *URL {
 			Path:   client.path + path,
 		},
 	}
+}
+
+func (client *HttpClient) getAndUnmarshal(addr string, i interface{}) error {
+	data, err := client.get(addr)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(data, i)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (client *HttpClient) patchAndUnmarshal(addr string, jsonVar interface{}, i interface{}) error {
+	data, err := client.patch(jsonVar, addr)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(data, i)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
