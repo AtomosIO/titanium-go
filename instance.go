@@ -3,8 +3,10 @@ package titanium
 import (
 	"errors"
 	"fmt"
-	"github.com/atomosio/common"
 	"strings"
+	"time"
+
+	"github.com/atomosio/common"
 )
 
 var _ = fmt.Printf
@@ -35,6 +37,12 @@ const (
 	InstanceQueuedStatus  // Instance has been queued to start up
 	InstanceActiveStatus  // Instance is active
 	InstanceStoppedStatus // Stopped
+
+	SpinSleepDuration = time.Millisecond * 1000
+)
+
+var (
+	ErrInstanceWaitForFinishTimeout = errors.New("Instance did not finish within timeout period")
 )
 
 var (
@@ -136,6 +144,30 @@ func (client *HttpClient) GetInstance(instanceId int64) (Instance, error) {
 	}
 
 	return output, nil
+}
+
+func (client *HttpClient) WaitForInstanceToFinish(id int64, timeout time.Duration) error {
+	waitTill := time.Now().Add(timeout)
+
+	for {
+		// Get cluster information
+		instance, err := client.GetInstance(id)
+		if err != nil {
+			return err
+		}
+
+		// If we're done, exit function
+		if instance.IsStopped() {
+			return nil
+		}
+
+		if time.Now().After(waitTill) {
+			return ErrInstanceWaitForFinishTimeout
+		}
+
+		// Go to sleep for a bit
+		time.Sleep(SpinSleepDuration)
+	}
 }
 
 func (instance Instance) IsWaiting() bool {

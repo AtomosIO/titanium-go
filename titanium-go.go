@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 	//	"github.com/atomosio/common"
 	"io"
 	"io/ioutil"
@@ -13,7 +14,7 @@ import (
 
 type HttpClient struct {
 	endpoint string
-	token    string
+	Token    string
 	client   *http.Client
 	log      bool
 
@@ -36,6 +37,8 @@ type URL struct {
 const (
 	InstancesEndpoint = "instances/"
 	ClustersEndpoint  = "clusters/"
+	ProjectsEndpoint  = "projects/"
+	TokensEndpoint    = "tokens/"
 )
 
 type Error struct {
@@ -55,7 +58,7 @@ func newHttpClient(endpoint, token string, log bool) (client *HttpClient) {
 	urlURL, _ := neturl.Parse(endpoint)
 
 	return &HttpClient{
-		token:    token,
+		Token:    token,
 		endpoint: endpoint,
 		client:   &http.Client{},
 		log:      log,
@@ -107,7 +110,7 @@ func (client *HttpClient) prepRequest(method string, url *URL, body io.Reader) (
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", client.token)
+	req.Header.Set("Authorization", client.Token)
 
 	client.Logf("HttpClient %s -> %s\n", method, url)
 
@@ -132,7 +135,7 @@ func (client *HttpClient) get(format string, args ...interface{}) (data []byte, 
 		client.Logf("Failed PrepRequest: %s\n", err)
 		return nil, err
 	}
-	//fmt.Printf("REQUEST -> %+v\n", req)
+
 	// Do request
 	resp, err := client.do(req)
 	if err != nil {
@@ -140,6 +143,19 @@ func (client *HttpClient) get(format string, args ...interface{}) (data []byte, 
 	}
 
 	data, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return data, err
+	}
+
+	return data, nil
+}
+
+func (client *HttpClient) doRequestAndReadResponse(req *http.Request) ([]byte, error) {
+	resp, err := client.do(req)
+	if err != nil {
+		return nil, err
+	}
+	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return data, err
 	}
@@ -165,20 +181,42 @@ func (client *HttpClient) patch(jsonVar interface{}, format string, args ...inte
 	}
 
 	// Do request
-	resp, err := client.do(req)
+	data, err = client.doRequestAndReadResponse(req)
 	if err != nil {
 		return nil, err
 	}
 
-	data, err = ioutil.ReadAll(resp.Body)
+	return data, nil
+}
+
+func (client *HttpClient) post(jsonVar interface{}, format string, args ...interface{}) (data []byte, err error) {
+	url := client.NewURL(fmt.Sprintf(format, args...))
+
+	marshalledData, err := json.Marshal(jsonVar)
 	if err != nil {
-		return data, err
+		return nil, err
+	}
+
+	reader := bytes.NewReader(marshalledData)
+
+	// Prepare request
+	req, err := client.prepPostRequest(url, reader)
+	if err != nil {
+		client.Logf("Failed PrepRequest: %s\n", err)
+		return nil, err
+	}
+
+	// Do request
+	data, err = client.doRequestAndReadResponse(req)
+	if err != nil {
+		return nil, err
 	}
 
 	return data, nil
 }
 
 func (client *HttpClient) NewURL(path string) *URL {
+	path = strings.Replace(path, "//", "/", -1)
 	return &URL{
 		URL: neturl.URL{
 			Scheme: client.scheme,
@@ -193,6 +231,20 @@ func (client *HttpClient) getAndUnmarshal(addr string, i interface{}) error {
 	if err != nil {
 		return err
 	}
+	err = json.Unmarshal(data, i)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (client *HttpClient) postAndUnmarshal(addr string, jsonVar interface{}, i interface{}) error {
+	data, err := client.post(jsonVar, addr)
+	if err != nil {
+		return err
+	}
+
 	err = json.Unmarshal(data, i)
 	if err != nil {
 		return err
