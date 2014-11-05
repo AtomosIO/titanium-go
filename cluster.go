@@ -3,6 +3,7 @@ package titanium
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/atomosio/common"
@@ -44,10 +45,14 @@ var (
 type Cluster struct {
 	Response
 
-	Id        int64   `json:"cluster_id"`
-	Status    string  `json:"status"`
-	Clusters  []int64 `json:"clusters"`
-	Instances []int64 `json:"instances"`
+	IdString        string   `json:"cluster_id"`
+	Status          string   `json:"status"`
+	ClustersString  []string `json:"clusters"`
+	InstancesString []string `json:"instances"`
+
+	Id        int64
+	Clusters  []int64
+	Instances []int64
 }
 
 type CreateClusterRequest struct {
@@ -59,7 +64,7 @@ type CreateClusterRequest struct {
 
 type CreateClusterResponse struct {
 	Response
-	ClusterId int64 `json:"cluster_id,omitempty"`
+	ClusterId string `json:"cluster_id,omitempty"`
 }
 
 // Retreives information related to the cluster
@@ -77,7 +82,27 @@ func (client *HttpClient) GetCluster(id int64) (Cluster, error) {
 		return output, errors.New("Failed to get cluster information: " + output.Response.Description)
 	}
 
-	output.Id = id
+	output.Id, err = strconv.ParseInt(output.IdString, 10, 64)
+	if err != nil {
+		return output, err
+	}
+
+	output.Clusters = make([]int64, len(output.ClustersString))
+	for index, str := range output.ClustersString {
+		output.Clusters[index], err = strconv.ParseInt(str, 10, 64)
+		if err != nil {
+			return output, err
+		}
+	}
+
+	output.Instances = make([]int64, len(output.InstancesString))
+	for index, str := range output.InstancesString {
+		output.Instances[index], err = strconv.ParseInt(str, 10, 64)
+		if err != nil {
+			return output, err
+		}
+	}
+
 	return output, nil
 }
 
@@ -101,7 +126,11 @@ func (client *HttpClient) CreateBatchCluster(name, project string, interfaces ma
 	}
 
 	// Get information on the newly created cluster
-	return client.GetCluster(response.ClusterId)
+	clusterId, err := strconv.ParseInt(response.ClusterId, 10, 64)
+	if err != nil {
+		return Cluster{}, err
+	}
+	return client.GetCluster(clusterId)
 }
 
 func (client *HttpClient) WaitForClusterToFinish(id int64, seconds time.Duration) error {

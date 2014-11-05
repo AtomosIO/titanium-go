@@ -42,6 +42,44 @@ type UpdateProjectRequest struct {
 	Type          string                   `json:"type"`
 }
 
+func (client *HttpClient) SetTitle(project, title string) {
+	request := UpdateProjectRequest{
+		Title: title,
+	}
+
+	//send request
+	response := Response{}
+	addr := fmt.Sprintf("%s/%s", ProjectsEndpoint, project)
+	err := client.patchAndUnmarshal(addr, &request, &response)
+	if err != nil {
+		//TODO Change panic to return error
+		panic(err)
+	}
+
+	if response.Code != common.Success {
+		panic(response.Description)
+	}
+}
+
+func (client *HttpClient) SetDescription(project, description string) {
+	request := UpdateProjectRequest{
+		Description: description,
+	}
+
+	//send request
+	response := Response{}
+	addr := fmt.Sprintf("%s/%s", ProjectsEndpoint, project)
+	err := client.patchAndUnmarshal(addr, &request, &response)
+	if err != nil {
+		//TODO Change panic to return error
+		panic(err)
+	}
+
+	if response.Code != common.Success {
+		panic(response.Description)
+	}
+}
+
 func (client *HttpClient) SetSystem(project string, interfaces []ProjectInterface, entities []ConfigurationEntity) {
 	// Convert from ProjectInterface to OutProjectInterface
 	outInterfaces := ProjectInterfacesToOutProjectInterfaces(interfaces)
@@ -70,6 +108,7 @@ func (client *HttpClient) SetProjectKernel(project string, kernel Kernel) {
 	// Convert from ProjectInterface to OutProjectInterface
 	outKernel := KernelToOutKernel(kernel)
 	request := UpdateProjectRequest{
+		Type:   ProjectTypeToString[ProjectKernelType],
 		Kernel: &outKernel,
 	}
 

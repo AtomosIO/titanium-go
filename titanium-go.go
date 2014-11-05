@@ -244,7 +244,6 @@ func (client *HttpClient) postAndUnmarshal(addr string, jsonVar interface{}, i i
 	if err != nil {
 		return err
 	}
-
 	err = json.Unmarshal(data, i)
 	if err != nil {
 		return err

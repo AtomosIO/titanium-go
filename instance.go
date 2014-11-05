@@ -3,7 +3,8 @@ package titanium
 import (
 	"errors"
 	"fmt"
-	"strings"
+	"strconv"
+	//"strings"
 	"time"
 
 	"github.com/atomosio/common"
@@ -15,14 +16,12 @@ type Instance struct {
 	Code        int64  `json:"code"`
 	Description string `json:"description"`
 
-	Command string `json:"command"`
-	Stdout  int64  `json:"stdout"`
-	Stderr  int64  `json:"stderr"`
-	Status  string `json:"status"`
-
-	Executable string
-	Arguments  []string
-	Directory  string
+	Command      string `json:"command"`
+	Stdout       int64
+	Stderr       int64
+	StdoutString string `json:"stdout"`
+	StderrString string `json:"stderr"`
+	Status       string `json:"status"`
 }
 
 type UpdateInstanceRequest struct {
@@ -129,18 +128,13 @@ func (client *HttpClient) GetInstance(instanceId int64) (Instance, error) {
 	}
 	// TODO Check reponse to make sure operation succeeded
 
-	// Sample command:
-	// /atomos/user/project/directory/executable arguments and more arugments
-	commandSplits := strings.SplitN(output.Command, " ", 2)
-	output.Executable = commandSplits[0]
-
-	lastSeperatorIndex := strings.LastIndex(output.Executable, "/")
-	if lastSeperatorIndex != -1 {
-		output.Directory = output.Executable[:lastSeperatorIndex]
+	output.Stderr, err = strconv.ParseInt(output.StderrString, 10, 64)
+	if err != nil {
+		return output, err
 	}
-
-	if len(commandSplits) == 2 {
-		output.Arguments = strings.Split(commandSplits[1], " ")
+	output.Stdout, err = strconv.ParseInt(output.StdoutString, 10, 64)
+	if err != nil {
+		return output, err
 	}
 
 	return output, nil
