@@ -231,6 +231,7 @@ func (client *HttpClient) getAndUnmarshal(addr string, i interface{}) error {
 	if err != nil {
 		return err
 	}
+
 	err = json.Unmarshal(data, i)
 	if err != nil {
 		return err

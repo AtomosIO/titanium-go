@@ -80,7 +80,7 @@ func (client *HttpClient) SetDescription(project, description string) {
 	}
 }
 
-func (client *HttpClient) SetSystem(project string, interfaces []ProjectInterface, entities []ConfigurationEntity) {
+func (client *HttpClient) SetProjectSystem(project string, interfaces []ProjectInterface, entities []ConfigurationEntity) {
 	// Convert from ProjectInterface to OutProjectInterface
 	outInterfaces := ProjectInterfacesToOutProjectInterfaces(interfaces)
 	outConfigurations := ConfigurationEntitiesToOutConfigurationEntities(entities)
