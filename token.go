@@ -28,7 +28,7 @@ func (client *HttpClient) Login(user, password string) error {
 
 	//send request
 	response := CreateTokenResponse{}
-	err := client.postAndUnmarshal(TokensEndpoint, &request, &response)
+	err := client.DoMethodAndUnmarshal("POST", TokensEndpoint, &request, &response)
 	if err != nil {
 		return err
 	}

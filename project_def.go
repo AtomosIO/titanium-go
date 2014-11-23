@@ -10,8 +10,8 @@ var _ = fmt.Print
 var _ = log.New
 var _ = os.Stderr
 
-type DirectionType uint8
-type TypeType uint8
+type DirectionType int8
+type TypeType int8
 
 const (
 	ProjectSystemType = iota

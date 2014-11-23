@@ -73,7 +73,7 @@ func (client *HttpClient) GetCluster(id int64) (Cluster, error) {
 
 	// Get and unmarshal
 	addr := fmt.Sprintf("%s%d", ClustersEndpoint, id)
-	err := client.getAndUnmarshal(addr, &output)
+	err := client.DoEmptyMethodAndUnmarshal("GET", addr, &output)
 	if err != nil {
 		return output, err
 	}
@@ -116,7 +116,7 @@ func (client *HttpClient) CreateBatchCluster(name, project string, interfaces ma
 
 	// Post and unmarshal response
 	var response CreateClusterResponse
-	err := client.postAndUnmarshal(ClustersEndpoint, &request, &response)
+	err := client.DoMethodAndUnmarshal("POST", ClustersEndpoint, &request, &response)
 	if err != nil {
 		return Cluster{}, err
 	}

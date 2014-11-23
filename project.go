@@ -21,7 +21,7 @@ func (client *HttpClient) CreateProject(projectName string, public bool) error {
 		Name:   projectName,
 		Public: public,
 	}
-	err := client.postAndUnmarshal(ProjectsEndpoint, &request, &response)
+	err := client.DoMethodAndUnmarshal("POST", ProjectsEndpoint, &request, &response)
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func (client *HttpClient) SetTitle(project, title string) {
 	//send request
 	response := Response{}
 	addr := fmt.Sprintf("%s/%s", ProjectsEndpoint, project)
-	err := client.patchAndUnmarshal(addr, &request, &response)
+	err := client.DoMethodAndUnmarshal("PATCH", addr, &request, &response)
 	if err != nil {
 		//TODO Change panic to return error
 		panic(err)
@@ -69,7 +69,7 @@ func (client *HttpClient) SetDescription(project, description string) {
 	//send request
 	response := Response{}
 	addr := fmt.Sprintf("%s/%s", ProjectsEndpoint, project)
-	err := client.patchAndUnmarshal(addr, &request, &response)
+	err := client.DoMethodAndUnmarshal("PATCH", addr, &request, &response)
 	if err != nil {
 		//TODO Change panic to return error
 		panic(err)
@@ -93,7 +93,7 @@ func (client *HttpClient) SetProjectSystem(project string, interfaces []ProjectI
 	//send request
 	response := Response{}
 	addr := fmt.Sprintf("%s/%s", ProjectsEndpoint, project)
-	err := client.patchAndUnmarshal(addr, &request, &response)
+	err := client.DoMethodAndUnmarshal("PATCH", addr, &request, &response)
 	if err != nil {
 		//TODO Change panic to return error
 		panic(err)
@@ -115,7 +115,7 @@ func (client *HttpClient) SetProjectKernel(project string, kernel Kernel) {
 	//send request
 	response := Response{}
 	addr := fmt.Sprintf("%s/%s", ProjectsEndpoint, project)
-	err := client.patchAndUnmarshal(addr, &request, &response)
+	err := client.DoMethodAndUnmarshal("PATCH", addr, &request, &response)
 	if err != nil {
 		panic(err)
 	}

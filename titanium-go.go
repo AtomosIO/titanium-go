@@ -80,26 +80,6 @@ func (client *HttpClient) Logf(format string, args ...interface{}) {
 	}
 }
 
-func (client *HttpClient) prepHeadRequest(url *URL) (req *http.Request, err error) {
-	return client.prepEmptyRequest("HEAD", url)
-}
-
-func (client *HttpClient) prepDeleteRequest(url *URL) (req *http.Request, err error) {
-	return client.prepEmptyRequest("DELETE", url)
-}
-
-func (client *HttpClient) prepGetRequest(url *URL) (req *http.Request, err error) {
-	return client.prepEmptyRequest("GET", url)
-}
-
-func (client *HttpClient) prepPostRequest(url *URL, body io.Reader) (req *http.Request, err error) {
-	return client.prepRequest("POST", url, body)
-}
-
-func (client *HttpClient) prepPatchRequest(url *URL, body io.Reader) (req *http.Request, err error) {
-	return client.prepRequest("PATCH", url, body)
-}
-
 func (client *HttpClient) prepEmptyRequest(method string, url *URL) (req *http.Request, err error) {
 	return client.prepRequest(method, url, nil)
 }
@@ -126,11 +106,11 @@ func statusGood(status int) bool {
 	return status >= 200 && status <= 299
 }
 
-func (client *HttpClient) get(format string, args ...interface{}) (data []byte, err error) {
+func (client *HttpClient) doEmptyRequestAndReadResponse(method, format string, args ...interface{}) (data []byte, err error) {
 	url := client.NewURL(fmt.Sprintf(format, args...))
 
 	// Prepare request
-	req, err := client.prepGetRequest(url)
+	req, err := client.prepEmptyRequest(method, url)
 	if err != nil {
 		client.Logf("Failed PrepRequest: %s\n", err)
 		return nil, err
@@ -150,7 +130,7 @@ func (client *HttpClient) get(format string, args ...interface{}) (data []byte, 
 	return data, nil
 }
 
-func (client *HttpClient) doRequestAndReadResponse(req *http.Request) ([]byte, error) {
+func (client *HttpClient) clientDoRequestAndReadResponse(req *http.Request) ([]byte, error) {
 	resp, err := client.do(req)
 	if err != nil {
 		return nil, err
@@ -163,8 +143,9 @@ func (client *HttpClient) doRequestAndReadResponse(req *http.Request) ([]byte, e
 	return data, nil
 }
 
-func (client *HttpClient) patch(jsonVar interface{}, format string, args ...interface{}) (data []byte, err error) {
-	url := client.NewURL(fmt.Sprintf(format, args...))
+func (client *HttpClient) doRequestAndReadResponse(method string, jsonVar interface{}, addrfmt string, args ...interface{}) (data []byte, err error) {
+	addr := fmt.Sprintf(addrfmt, args...)
+	url := client.NewURL(addr)
 
 	marshalledData, err := json.Marshal(jsonVar)
 	if err != nil {
@@ -174,40 +155,14 @@ func (client *HttpClient) patch(jsonVar interface{}, format string, args ...inte
 	reader := bytes.NewReader(marshalledData)
 
 	// Prepare request
-	req, err := client.prepPatchRequest(url, reader)
+	req, err := client.prepRequest(method, url, reader)
 	if err != nil {
 		client.Logf("Failed PrepRequest: %s\n", err)
 		return nil, err
 	}
 
 	// Do request
-	data, err = client.doRequestAndReadResponse(req)
-	if err != nil {
-		return nil, err
-	}
-
-	return data, nil
-}
-
-func (client *HttpClient) post(jsonVar interface{}, format string, args ...interface{}) (data []byte, err error) {
-	url := client.NewURL(fmt.Sprintf(format, args...))
-
-	marshalledData, err := json.Marshal(jsonVar)
-	if err != nil {
-		return nil, err
-	}
-
-	reader := bytes.NewReader(marshalledData)
-
-	// Prepare request
-	req, err := client.prepPostRequest(url, reader)
-	if err != nil {
-		client.Logf("Failed PrepRequest: %s\n", err)
-		return nil, err
-	}
-
-	// Do request
-	data, err = client.doRequestAndReadResponse(req)
+	data, err = client.clientDoRequestAndReadResponse(req)
 	if err != nil {
 		return nil, err
 	}
@@ -226,8 +181,8 @@ func (client *HttpClient) NewURL(path string) *URL {
 	}
 }
 
-func (client *HttpClient) getAndUnmarshal(addr string, i interface{}) error {
-	data, err := client.get(addr)
+func (client *HttpClient) DoEmptyMethodAndUnmarshal(method, addr string, i interface{}) error {
+	data, err := client.doEmptyRequestAndReadResponse(method, addr)
 	if err != nil {
 		return err
 	}
@@ -240,24 +195,13 @@ func (client *HttpClient) getAndUnmarshal(addr string, i interface{}) error {
 	return nil
 }
 
-func (client *HttpClient) postAndUnmarshal(addr string, jsonVar interface{}, i interface{}) error {
-	data, err := client.post(jsonVar, addr)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(data, i)
+func (client *HttpClient) DoMethodAndUnmarshal(method, addr string, jsonVar interface{}, i interface{}) error {
+
+	data, err := client.doRequestAndReadResponse(method, jsonVar, addr)
 	if err != nil {
 		return err
 	}
 
-	return nil
-}
-
-func (client *HttpClient) patchAndUnmarshal(addr string, jsonVar interface{}, i interface{}) error {
-	data, err := client.patch(jsonVar, addr)
-	if err != nil {
-		return err
-	}
 	err = json.Unmarshal(data, i)
 	if err != nil {
 		return err

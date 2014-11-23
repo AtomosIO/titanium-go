@@ -19,15 +19,23 @@ type Instance struct {
 	Command      string `json:"command"`
 	Stdout       int64
 	Stderr       int64
-	StdoutString string `json:"stdout"`
-	StderrString string `json:"stderr"`
-	Status       string `json:"status"`
+	StdoutString string     `json:"stdout"`
+	StderrString string     `json:"stderr"`
+	Status       string     `json:"status"`
+	Log          []LogEntry `json:"log"`
+}
+
+type LogEntry struct {
+	Type string `json:"type"`
+	// Unix timestamp
+	Timestamp int64  `json:"timestamp"`
+	Comment   string `json:"comment"`
 }
 
 type UpdateInstanceRequest struct {
-	Status        int16  `json:"status,omitempty"`
-	StatusComment string `json:"statusComment,omitempty"`
-	Error         string `json:"error,omitempty"`
+	Status int16  `json:"status,omitempty"`
+	Log    string `json:"log,omitempty"`
+	Error  string `json:"error,omitempty"`
 }
 
 const (
@@ -54,6 +62,19 @@ var (
 	}
 )
 
+var (
+	EventStrings = []string{
+		"Invalid",
+		"Waiting",
+		"Queued",
+		"Started",
+		"Stopped",
+		"Error",
+		"Log",
+		"Shutdown",
+	}
+)
+
 // Retreives the instance information associated with the token this client was
 // created with.
 func (client *HttpClient) GetTokenInstance() (Instance, error) {
@@ -67,7 +88,7 @@ func (client *HttpClient) SetInstanceActive(instanceId int64) error {
 	}
 	response := &Response{}
 	addr := fmt.Sprintf("%s%d", InstancesEndpoint, instanceId)
-	err := client.patchAndUnmarshal(addr, request, response)
+	err := client.DoMethodAndUnmarshal("PATCH", addr, request, response)
 	if err != nil {
 		return err
 	}
@@ -85,7 +106,25 @@ func (client *HttpClient) SetInstanceStopped(instanceId int64) error {
 	}
 	response := &Response{}
 	addr := fmt.Sprintf("%s%d", InstancesEndpoint, instanceId)
-	err := client.patchAndUnmarshal(addr, request, response)
+	err := client.DoMethodAndUnmarshal("PATCH", addr, request, response)
+	if err != nil {
+		return err
+	}
+	if response.Code != common.Success {
+		return errors.New(response.Description)
+	}
+
+	return nil
+}
+
+func (client *HttpClient) LogInstanceComment(instanceId int64, comment string) error {
+	// Get and unmarshal
+	request := UpdateInstanceRequest{
+		Log: comment,
+	}
+	response := &Response{}
+	addr := fmt.Sprintf("%s%d", InstancesEndpoint, instanceId)
+	err := client.DoMethodAndUnmarshal("PATCH", addr, request, response)
 	if err != nil {
 		return err
 	}
@@ -103,7 +142,7 @@ func (client *HttpClient) LogInstanceError(instanceId int64, comment string) err
 	}
 	response := &Response{}
 	addr := fmt.Sprintf("%s%d", InstancesEndpoint, instanceId)
-	err := client.patchAndUnmarshal(addr, request, response)
+	err := client.DoMethodAndUnmarshal("PATCH", addr, request, response)
 	if err != nil {
 		return err
 	}
@@ -119,7 +158,7 @@ func (client *HttpClient) GetInstance(instanceId int64) (Instance, error) {
 
 	// Get and unmarshal
 	addr := fmt.Sprintf("%s%d", InstancesEndpoint, instanceId)
-	err := client.getAndUnmarshal(addr, &output)
+	err := client.DoEmptyMethodAndUnmarshal("GET", addr, &output)
 	if err != nil {
 		return output, err
 	}
@@ -136,7 +175,6 @@ func (client *HttpClient) GetInstance(instanceId int64) (Instance, error) {
 	if err != nil {
 		return output, err
 	}
-
 	return output, nil
 }
 
@@ -174,4 +212,21 @@ func (instance Instance) IsActive() bool {
 
 func (instance Instance) IsStopped() bool {
 	return instance.Status == InstanceStatusStrings[InstanceStoppedStatus]
+}
+
+func (instance Instance) IsShuttingDown() bool {
+	shutDownEventLast := false
+
+	for _, entry := range instance.Log {
+		switch entry.Type {
+		case "Shutdown":
+			shutDownEventLast = true
+		case "Waiting", "Queued", "Started":
+			// If we have had another event that causes an instance start, we aren't
+			// shutting down.
+			shutDownEventLast = false
+		}
+	}
+
+	return shutDownEventLast
 }
